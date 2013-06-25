@@ -37,20 +37,25 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 	private MenuItem             mItemToggleRecord = null;
 	private MenuItem[]             exposureMenu = null;
 	private MenuItem[]             wBalanceMenu = null;
+	private MenuItem[]             focusModeMenu = null;
 	SubMenu exposureOptions;
 	SubMenu wBalanceOptions;
+	SubMenu focusModeOptions;
+	List<String> wBalanceVals;
+	List<String> focusModeVals;
+	List<Integer> exposureVals;
+
 	private String currentDir = new String();
 	private static String dirPrefix = "Record started at ";
 	private FileSaverLooper fileSaver = new FileSaverLooper();
 	private int frame_counter = 0;
 	List<Integer> sensors_idxs_to_listen = new ArrayList<Integer>();
 	Logger mLogger = new Logger();
-	List<Integer> exposureVals;
-	List<String> wBalanceVals;
 	private static int EXPOSURE_GROUP = 1;
 	private static int WHITE_BALANCE_GROUP = 2;
+	private static int FOCUS_MODE_GROUP = 3;
 	private HashMap<Sensor, String> sensor_file_names = new HashMap<Sensor, String>();
-	
+
 	/**TODO: 1. make sure all frames are saved- even if app is being closed
 	 * */
 
@@ -155,10 +160,8 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 			Log.e(TAG, "compensation vals are not supported by device!");
 			return true;
 		}
-
 		exposureOptions = menu.addSubMenu("Exposure Level");
 		exposureMenu = new MenuItem[exposureVals.size()];
-
 		int idx = 0;
 		for (Integer value : exposureVals){
 			exposureMenu[idx] = exposureOptions.add(EXPOSURE_GROUP, idx, Menu.NONE, value.toString());
@@ -179,6 +182,20 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 			idx++;
 		}
 
+		/** create Focus mode item */
+		focusModeVals = mConfCameraView.getFocusModes();
+		if (focusModeVals == null) {
+			Log.e(TAG, "focus modes not supported by device!");
+			return true;
+		}
+		focusModeOptions = menu.addSubMenu("Focus mode");
+		focusModeMenu = new MenuItem[focusModeVals.size()];
+		idx = 0;
+		for (String value : focusModeVals){
+			focusModeMenu[idx] = focusModeOptions.add(FOCUS_MODE_GROUP, idx, Menu.NONE, value.toString());
+			idx++;
+		}
+
 		return true;
 	}
 
@@ -187,23 +204,38 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 		String toastMesage = new String();
 		Log.i(TAG, "called onOptionsItemSelected; selected item: " + item);
 
-		if (item.getGroupId() == EXPOSURE_GROUP)
-		{
-			mConfCameraView.setExposure(Integer.parseInt((String)item.getTitle()));
-			Toast.makeText(this, String.valueOf(mConfCameraView.getExposure()), Toast.LENGTH_SHORT).show();
-		}
-		else if (item.getGroupId() == WHITE_BALANCE_GROUP) {
-			mConfCameraView.setWhiteBalance((String)item.getTitle());
-			Toast.makeText(this, mConfCameraView.getWhiteBalance(), Toast.LENGTH_SHORT).show();
-		}
+		if (item.getGroupId() == EXPOSURE_GROUP || item.getGroupId() == WHITE_BALANCE_GROUP || item.getGroupId() == FOCUS_MODE_GROUP){
 
+			if (item.getGroupId() == EXPOSURE_GROUP)
+			{
+
+				mConfCameraView.setExposure(Integer.parseInt((String)item.getTitle()));
+				Toast.makeText(this, String.valueOf(mConfCameraView.getExposure()), Toast.LENGTH_SHORT).show();
+			}
+			else if (item.getGroupId() == WHITE_BALANCE_GROUP) {
+				mConfCameraView.setWhiteBalance((String)item.getTitle());
+				Toast.makeText(this, mConfCameraView.getWhiteBalance(), Toast.LENGTH_SHORT).show();
+			}
+
+			else if (item.getGroupId() == FOCUS_MODE_GROUP) {
+				mConfCameraView.setFocusMode((String)item.getTitle());
+				Toast.makeText(this, mConfCameraView.getFocusMode(), Toast.LENGTH_SHORT).show();
+			}
+			/*update the log*/
+			if(isRecording){
+				updateCameraModeChange();
+			}
+		}
+		
 		else if (item == mItemToggleRecord) {
 			isRecording = !isRecording;
 			if (isRecording) {
 				Date date= new Date() ;
 				currentDir = dirPrefix + date.getTime(); 
 				Logger.makeDir(currentDir);/** TODO: there is a race here*/
-				mLogger.prepareLogFile (currentDir + "/" + StaticNames.IMAGESDIRNAME, StaticNames.FRAMELOGFILENAM, StaticNames.frameLogColumns);/** TODO: there is a race here*/
+				mLogger.prepareLogFile (currentDir + "/" + StaticNames.IMAGESDIRNAME, StaticNames.FRAMELOGFILENAM, StaticNames.frameLogColumns, 1048576);/** TODO: there is a race here*/
+				mLogger.prepareLogFile (currentDir + "/" + StaticNames.IMAGESDIRNAME, StaticNames.CAMMODEFILENAM, StaticNames.cameraParamsColumns, 1024);/** TODO: there is a race here*/
+				updateCameraModeChange();
 				toastMesage = "Record started...!";  
 				setupSensors();
 				startSensorListening();
@@ -265,7 +297,7 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 			ArrayList<String> col_names = StaticNames.getLogColumns(s.getType());
 			if (col_names != null){
 				String sensorFilename = StaticNames.getSensorFileName(s);
-				mLogger.prepareLogFile(currentDir + "/" + StaticNames.SENSORSDIRNAME, sensorFilename, col_names);
+				mLogger.prepareLogFile(currentDir + "/" + StaticNames.SENSORSDIRNAME, sensorFilename, col_names, 1048576);
 				sensor_file_names.put(s,sensorFilename);
 				sensors_idxs_to_listen.add(idx);
 			}
@@ -283,5 +315,13 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 	private void stopSensorListening(){
 		mSensorManager.unregisterListener(mSensorEventListener);
 	}
+	private void updateCameraModeChange(){
+		Date now = new Date();
+		final long millis = now.getTime();
+		String what_to_write = millis + "," + mConfCameraView.getExposure() + "," + mConfCameraView.getFocusMode() + "," + mConfCameraView.getWhiteBalance();
+		mLogger.printToLog(what_to_write, StaticNames.CAMMODEFILENAM);
+		
+	}
+
 
 }

@@ -45,6 +45,18 @@ public class ConfigurableCameraView extends JavaCameraView {
 	public List<String> getWhiteBalnaceVals(){
 		return mCamera.getParameters().getSupportedWhiteBalance();
 	}
+	
+	public String getFocusMode(){
+		return mCamera.getParameters().getFocusMode();
+	}
+	public void setFocusMode(String mode){
+		Camera.Parameters params = mCamera.getParameters();
+		params.setFocusMode(mode);
+		mCamera.setParameters(params);
+	}
+	public List<String> getFocusModes(){
+		return mCamera.getParameters().getSupportedFocusModes();
+	}
 
 	public void resetExposure(){
 		Camera.Parameters params = mCamera.getParameters();

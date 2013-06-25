@@ -10,11 +10,13 @@ public class StaticNames {
 
 	/** file names*/
 	public static final String FRAMELOGFILENAM = "frame_log.csv";
+	public static final String CAMMODEFILENAM = "Camera_modes_changes.csv";
 	static String IMAGESDIRNAME = "Frames";
 	static String SENSORSDIRNAME = "Sensor_Readings";
 
 	/** column names for logs*/
 	public static ArrayList<String> frameLogColumns = new ArrayList<String>(Arrays.asList("Time_captured","FrameNumber"));
+	public static ArrayList<String> cameraParamsColumns = new ArrayList<String>(Arrays.asList("Time_changed","Exposure_comp","Focus Mode","WB_mode" ));
 	public static ArrayList<String> getLogColumns(int sensor_type){
 		ArrayList<String> ret = new ArrayList<String>();
 		ret.add("Time_captured");

@@ -117,9 +117,8 @@ public class Logger {
 		printToLog(what_and_where.timeCaptured + values_string, what_and_where.fileName);
 	}
 
-	public void prepareLogFile (String DIRNAME, String FILENAME, List<String> columns){
-		createLog(DIRNAME, FILENAME, true, 1048576);
-
+	public void prepareLogFile (String DIRNAME, String FILENAME, List<String> columns, int buffer_size){
+		createLog(DIRNAME, FILENAME, true, buffer_size);
 		String col_string = new String();
 		for(String col: columns){
 			col_string = col_string.concat("\"" + col + "\",");
