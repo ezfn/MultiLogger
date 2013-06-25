@@ -4,7 +4,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
@@ -12,7 +11,6 @@ import org.opencv.core.Mat;
 import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 
-import android.os.Debug;
 import android.os.Environment;
 import android.util.Log;
 
@@ -76,7 +74,7 @@ public class Logger {
 
 		for (BufferedWriter writer : fileWriters.values()) {
 			try {
-				writer.close();
+				writer.flush();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

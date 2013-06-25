@@ -50,7 +50,7 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 	private static int EXPOSURE_GROUP = 1;
 	private static int WHITE_BALANCE_GROUP = 2;
 	private HashMap<Sensor, String> sensor_file_names = new HashMap<Sensor, String>();
-		
+
 
 
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -74,6 +74,18 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 		Log.i(TAG, "Instantiated new " + this.getClass());
 	}
 
+	public void init(){
+		frame_counter = 0;
+		fileSaver.setPriority(Thread.MIN_PRIORITY);
+	}
+
+	public void suspend(){
+		isRecording = false;
+		stopSensorListening();
+		mLogger.closeLogs();
+		fileSaver.setPriority(Thread.MAX_PRIORITY);
+	}
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		Log.i(TAG, "called onCreate");
@@ -87,7 +99,7 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 
 		mConfCameraView.setCvCameraViewListener(this);
 
-		fileSaver.setDaemon(true);//TODO: think about the handler being inside a daemon thread
+		//fileSaver.setDaemon(true);//TODO: think about the handler being inside a daemon thread
 		fileSaver.setPriority(Thread.MIN_PRIORITY);
 		fileSaver.start();
 		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -99,6 +111,8 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 		super.onPause();
 		if (mConfCameraView != null)
 			mConfCameraView.disableView();
+		//suspend();
+
 	}
 
 	@Override
@@ -106,13 +120,25 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 	{
 		super.onResume();
 		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this, mLoaderCallback);
+		init();
 	}
 
 	public void onDestroy() {
 		super.onDestroy();
 		if (mConfCameraView != null)
 			mConfCameraView.disableView();
-		mLogger.closeLogs();
+		suspend();
+	}
+	public void onStop() {
+		super.onStop();
+		if (mConfCameraView != null)
+			mConfCameraView.disableView();
+		suspend();
+	}
+	public void onRestart() {
+		super.onStop();
+		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this, mLoaderCallback);
+		init();
 	}
 
 	@Override
@@ -135,7 +161,7 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 			exposureMenu[idx] = exposureOptions.add(EXPOSURE_GROUP, idx, Menu.NONE, value.toString());
 			idx++;
 		}
-		
+
 		/** create WB item */
 		wBalanceVals = mConfCameraView.getWhiteBalnaceVals();
 		if (wBalanceVals == null) {
@@ -149,7 +175,7 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 			wBalanceMenu[idx] = wBalanceOptions.add(WHITE_BALANCE_GROUP, idx, Menu.NONE, value.toString());
 			idx++;
 		}
-		
+
 		return true;
 	}
 
@@ -159,10 +185,10 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 		Log.i(TAG, "called onOptionsItemSelected; selected item: " + item);
 
 		if (item.getGroupId() == EXPOSURE_GROUP)
-        {
-            mConfCameraView.setExposure(Integer.parseInt((String)item.getTitle()));
-            Toast.makeText(this, String.valueOf(mConfCameraView.getExposure()), Toast.LENGTH_SHORT).show();
-        }
+		{
+			mConfCameraView.setExposure(Integer.parseInt((String)item.getTitle()));
+			Toast.makeText(this, String.valueOf(mConfCameraView.getExposure()), Toast.LENGTH_SHORT).show();
+		}
 		else if (item.getGroupId() == WHITE_BALANCE_GROUP) {
 			mConfCameraView.setWhiteBalance((String)item.getTitle());
 			Toast.makeText(this, mConfCameraView.getWhiteBalance(), Toast.LENGTH_SHORT).show();
@@ -178,11 +204,13 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 				toastMesage = "Record started...!";  
 				setupSensors();
 				startSensorListening();
+				fileSaver.setPriority(Thread.MIN_PRIORITY);
 			} else {
 				stopSensorListening();
 				mLogger.closeLogs();
 				toastMesage = "Record stopped...!";
 				frame_counter = 0;
+				fileSaver.setPriority(Thread.MAX_PRIORITY);
 			}
 			Toast toast = Toast.makeText(this, toastMesage, Toast.LENGTH_LONG);
 			toast.show();

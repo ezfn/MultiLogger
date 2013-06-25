@@ -5,7 +5,7 @@
     android:versionName="2.1" >
 
     <application
-        android:icon="@drawable/icon"
+        android:icon="@drawable/recordicon"
         android:label="@string/app_name"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen" >
         <activity
