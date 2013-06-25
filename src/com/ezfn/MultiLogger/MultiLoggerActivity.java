@@ -50,6 +50,9 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 	private static int EXPOSURE_GROUP = 1;
 	private static int WHITE_BALANCE_GROUP = 2;
 	private HashMap<Sensor, String> sensor_file_names = new HashMap<Sensor, String>();
+	
+	/**TODO: 1. make sure all frames are saved- even if app is being closed
+	 * */
 
 
 
