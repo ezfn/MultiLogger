@@ -3,7 +3,6 @@ package com.ezfn.MultiLogger;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.util.Log;
 
 public class FileSaverLooper extends Thread {
 	

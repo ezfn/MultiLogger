@@ -1,9 +1,6 @@
 package com.ezfn.MultiLogger;
 
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
-import org.opencv.core.Mat;
-
-import android.util.Log;
 
 public class FrameBundleToSave implements Runnable {
 	CvCameraViewFrame frame;
