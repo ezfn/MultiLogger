@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
@@ -19,6 +20,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -28,13 +30,13 @@ import android.view.WindowManager;
 import android.widget.Toast;
 
 public class MultiLoggerActivity extends Activity implements CvCameraViewListener2 {
+	private static final String SAVERCOMMTAG = "SAVERCOMM";
 	private static final String TAG = "OCVSample::Activity";
-
 	private List<Sensor> sensors;
 	private SensorManager mSensorManager;
 	private ConfigurableCameraView mConfCameraView;
 	private Boolean              isRecording = false;
-	private MenuItem             mItemToggleRecord = null;
+	private MenuItem             mItemRecord = null;
 	private MenuItem[]             exposureMenu = null;
 	private MenuItem[]             wBalanceMenu = null;
 	private MenuItem[]             focusModeMenu = null;
@@ -47,7 +49,6 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 
 	private String currentDir = new String();
 	private static String dirPrefix = "Record started at ";
-	private FileSaverLooper fileSaver = new FileSaverLooper();
 	private int frame_counter = 0;
 	List<Integer> sensors_idxs_to_listen = new ArrayList<Integer>();
 	Logger mLogger = new Logger();
@@ -55,8 +56,31 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 	private static int WHITE_BALANCE_GROUP = 2;
 	private static int FOCUS_MODE_GROUP = 3;
 	private HashMap<Sensor, String> sensor_file_names = new HashMap<Sensor, String>();
+	private OnQueueFinishedListener queueFinishedListener = new OnQueueFinishedListener() {
 
-	/**TODO: 1. make sure all frames are saved- even if app is being closed
+		@Override
+		public void onQueueFinished() {
+			Log.d(SAVERCOMMTAG, "looper finished!");
+			fileSaver.mHandler.getLooper().quit();
+			MultiLoggerActivity.this.runOnUiThread(updateMenu);
+		}
+	}; 
+	Runnable updateMenu = new Runnable() {
+
+		@Override
+		public void run() {
+			mItemRecord.setTitle("Start a new record");
+			mItemRecord.setEnabled(true);
+		}
+	};
+
+
+	private FileSaverLooper fileSaver = new FileSaverLooper();
+
+	/**TODO: 
+	 * 1. Make sure all frames are saved- even if app is being closed. Or at least notify when finished frame saving. 
+	 * 2. Show a recording... indication on screen when recording
+	 * 3. Change the record button to a nicer one
 	 * */
 
 
@@ -84,6 +108,7 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 
 	public void init(){
 		frame_counter = 0;
+		fileSaver = new FileSaverLooper();
 		fileSaver.setPriority(Thread.MIN_PRIORITY);
 	}
 
@@ -107,9 +132,8 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 
 		mConfCameraView.setCvCameraViewListener(this);
 
-		//fileSaver.setDaemon(true);//TODO: think about the handler being inside a daemon thread
-		fileSaver.setPriority(Thread.MIN_PRIORITY);
-		fileSaver.start();
+
+		fileSaver.setDaemon(true);//TODO: think about the handler being inside a daemon thread
 		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 	}
 
@@ -152,7 +176,7 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		Log.i(TAG, "called onCreateOptionsMenu");
-		mItemToggleRecord = menu.add("Toggle Record/Stop");
+		mItemRecord = menu.add("Start Recording");
 
 		/** create exposure item */
 		exposureVals = mConfCameraView.getExposureCompensationVals();
@@ -226,10 +250,10 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 				updateCameraModeChange();
 			}
 		}
-		
-		else if (item == mItemToggleRecord) {
-			isRecording = !isRecording;
-			if (isRecording) {
+
+		else if (item == mItemRecord) {
+
+			if (!isRecording) {
 				Date date= new Date() ;
 				currentDir = dirPrefix + date.getTime(); 
 				Logger.makeDir(currentDir);/** TODO: there is a race here*/
@@ -239,14 +263,26 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 				toastMesage = "Record started...!";  
 				setupSensors();
 				startSensorListening();
+				fileSaver = new FileSaverLooper();
 				fileSaver.setPriority(Thread.MIN_PRIORITY);
+				fileSaver.setDaemon(true);
+				fileSaver.start();
+				isRecording = true;
+				mItemRecord.setTitle("Stop Recording");
 			} else {
+				isRecording = false;
 				stopSensorListening();
 				mLogger.closeLogs();
 				toastMesage = "Record stopped...!";
 				frame_counter = 0;
 				fileSaver.setPriority(Thread.MAX_PRIORITY);
+				Message quit_msg = new Message();
+				quit_msg.obj = queueFinishedListener;
+				fileSaver.mHandler.sendMessage(quit_msg);
+				mItemRecord.setTitle("Busy Saving...");
+				mItemRecord.setEnabled(false);
 			}
+
 			Toast toast = Toast.makeText(this, toastMesage, Toast.LENGTH_LONG);
 			toast.show();
 		} 
@@ -320,7 +356,7 @@ public class MultiLoggerActivity extends Activity implements CvCameraViewListene
 		final long millis = now.getTime();
 		String what_to_write = millis + "," + mConfCameraView.getExposure() + "," + mConfCameraView.getFocusMode() + "," + mConfCameraView.getWhiteBalance();
 		mLogger.printToLog(what_to_write, StaticNames.CAMMODEFILENAM);
-		
+
 	}
 
 
